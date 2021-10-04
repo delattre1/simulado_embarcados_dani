@@ -59,6 +59,7 @@ volatile char flag_tc3 = 0;
 
 volatile char flag_rtt_alarme   = 0;
 volatile char flag_leds_ligados = 1;
+volatile int  counter_rtt       = 0;
 
 void but1_callback() {
 	led1_on = !led1_on;

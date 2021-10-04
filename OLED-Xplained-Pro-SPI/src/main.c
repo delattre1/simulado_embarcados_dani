@@ -24,6 +24,27 @@ void rtt_set_alarm(void) {
 	flag_rtt_alarme = 0;
 }
 
+void RTC_init(Rtc *rtc, uint32_t id_rtc, calendar t, uint32_t irq_type){
+	/* Configura o PMC */
+	pmc_enable_periph_clk(ID_RTC);
+
+	/* Default RTC configuration, 24-hour mode */
+	rtc_set_hour_mode(rtc, 0);
+
+	/* Configura data e hora manualmente */
+	rtc_set_date(rtc, t.year, t.month, t.day, t.week);
+	rtc_set_time(rtc, t.hour, t.minute, t.seccond);
+
+	/* Configure RTC interrupts */
+	NVIC_DisableIRQ(id_rtc);
+	NVIC_ClearPendingIRQ(id_rtc);
+	NVIC_SetPriority(id_rtc, 0);
+	NVIC_EnableIRQ(id_rtc);
+
+	/* Ativa interrupcao via alarme */
+	rtc_enable_interrupt(rtc,  irq_type);
+}
+
 void RTT_Handler(void) {
 	uint32_t ul_status;
 	/* Get RTT status - ACK */
@@ -31,13 +52,13 @@ void RTT_Handler(void) {
 	// /* IRQ due to Time has changed */
 	
 	 if ((ul_status & RTT_SR_RTTINC) == RTT_SR_RTTINC) {
-		//counter_rtt ++;        // flag RTT alarme
+		counter_rtt ++;        // flag RTT alarme
 	 }
 	 
 	/* IRQ due to Alarm */
 	if ((ul_status & RTT_SR_ALMS) == RTT_SR_ALMS) {
 		flag_rtt_alarme = 1;        // flag RTT alarme
-		//counter_rtt     = 0;
+		counter_rtt     = 0;
 	}
 }
 
@@ -136,7 +157,6 @@ void io_init(void) {
 	TC_init(TC0, ID_TC1, 1, freq_tc1);    // Configura timer TC0, canal 1  freq
 	TC_init(TC2, ID_TC8, 2, freq_tc2);    // Configura timer TC2, canal 2 */
 	TC_init(TC1, ID_TC3, 0, freq_tc3);    // last argmument is frequency/
-	
 }
 
 int main (void) {
@@ -146,10 +166,15 @@ int main (void) {
 	io_init();
 	rtt_set_alarm();
 	
-	gfx_mono_draw_string("Iniciando..",  0, 5, &sysfont); //horizontal, vertical
-	delay_s(1);
+	int  h, m, s;
+	char relogio[10];
 
 	while(1) {
+		rtc_get_time(RTC, &h, &m, &s);
+		
+		sprintf(relogio, "%d:%d:%d c:%d", h,m,s, counter_rtt);
+		gfx_mono_draw_string(relogio, 0, 16, &sysfont);
+		
 		if (flag_tc1 & led1_on & flag_leds_ligados) {
 			pin_toggle(LED1_PIO, LED1_IDX_MASK);
 			flag_tc1 = 0;
